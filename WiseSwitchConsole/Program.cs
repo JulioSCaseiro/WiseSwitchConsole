@@ -15,7 +15,7 @@ class SwitchControlApp
             // Handle the situation where no suitable COM port is detected
             return;
         }
-        Console.WriteLine(portName);
+        Console.WriteLine($"Using {portName}.");
 
         InitializeSerialPort(portName);
 
@@ -126,33 +126,46 @@ class SwitchControlApp
 
     static void VlanDeleteSwitch()
     {
-        Console.WriteLine("Please wait while the Vlan file is being deleted.");
-
         EnableSwitch();
+        Console.WriteLine("Checking if Vlan configuration exists.");
 
-        SendCommand("show flash:"); // Example command to retrieve the switch's version
-        Thread.Sleep(3000); // Wait for 2 seconds
-        // Read the response from the switch to confirm the status
-        string response = serialPort.ReadExisting();
-
-        if (response.Contains("vlan.dat.renamed"))
+        var filenames = new string[]
         {
-            SendCommand("delete flash:vlan.dat.renamed");
-            Thread.Sleep(500); // Wait for 0.5 second
-            SendCommand("vlan.dat.renamed");
-            Thread.Sleep(500); // Wait for 0.5 second
-            SendCommand("y");
-            Console.WriteLine("flash:vlan.dat.renamed deleted.");
-        }
-
-        if (response.Contains("vlan.dat"))
+            "vlan.dat.renamed", "vlan.dat"
+        };
+        foreach (string filename in filenames)
         {
-            SendCommand("delete flash:vlan.dat");
-            Thread.Sleep(500); // Wait for 0.5 second
-            SendCommand("vlan.dat");
-            Thread.Sleep(500); // Wait for 0.5 second
-            SendCommand("y");
-            Console.WriteLine("flash:vlan.dat deleted.");
+            SendCommand($"more flash:{filename}");
+            Thread.Sleep(500);
+            // Read the response from the switch to confirm the status
+            string response = serialPort.ReadExisting();
+
+            if (response.Contains("No such file"))
+            {
+                Console.WriteLine($"{filename} not found.");
+            }
+
+            else
+            {
+                // Send commands to delete startup file
+                SendCommand($"delete flash:{filename}");
+                Thread.Sleep(1000);
+                SendCommand($"{filename}");
+                Thread.Sleep(1000);
+                SendCommand("y");
+                Thread.Sleep(1500); // Wait for 1.5 secs
+                SendCommand($"more flash:{filename}"); // Example command to retrieve the switch's version
+                Thread.Sleep(500);
+                response = serialPort.ReadExisting();
+                if (response.Contains("No such file"))
+                {
+                    Console.WriteLine($"{filename} erased successfully.");
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to delete {filename}");
+                }
+            }
         }
     }
 
@@ -172,7 +185,7 @@ class SwitchControlApp
 
     static void EnableSwitch()
     {
-        Console.WriteLine("Please wait while the switch is being reset.");
+        Console.WriteLine("Enabling switch.");
         SendCommand("enable");
         Thread.Sleep(500); // Wait for 1 second
         string response = serialPort.ReadExisting();
