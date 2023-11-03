@@ -8,7 +8,7 @@ class SwitchControlApp
     static void Main(string[] args)
     {
         string portName = FindComPort();
-        
+
         if (portName == null)
         {
             Console.WriteLine("No compatible COM port found.");
@@ -77,7 +77,7 @@ class SwitchControlApp
         ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE Caption LIKE '%(COM" + portName.Substring(3) + "%'");
         foreach (ManagementObject queryObj in searcher.Get())
         {
-            if (queryObj["Caption"].ToString().Contains("USB Serial Port"))
+            if (queryObj["Caption"].ToString().Contains("USB Serial Port") || queryObj["Caption"].ToString().Contains("USB"))
             {
                 return true;
             }
@@ -171,9 +171,11 @@ class SwitchControlApp
 
     static void ConfigurePortsForTesting()
     {
-        // Send commands to configure ports for testing
-        SendCommand("configure_ports_for_testing");
-        Console.WriteLine("Ports configured for testing.");
+        EnableSwitch();
+        SendCommand("conf ter");
+        SendCommand("default interface range FastEthernet2/0/1 - 48");
+        SendCommand("end");
+        Console.WriteLine("All ports configured with default settings.");
     }
 
     static void DeletePortConfigurations()
@@ -187,12 +189,12 @@ class SwitchControlApp
     {
         Console.WriteLine("Enabling switch.");
         SendCommand("enable");
-        Thread.Sleep(500); // Wait for 1 second
+        Thread.Sleep(1000); // Wait for 1 second
         string response = serialPort.ReadExisting();
-        if(response.Contains("password"))
+        if (response.Contains("Password"))
         {
-        SendCommand("cisco");
-        Thread.Sleep(500); // Wait for 1 second
+            SendCommand("cisco");
+            Thread.Sleep(500); // Wait for 1 second
         }
     }
 
@@ -275,6 +277,7 @@ class SwitchControlApp
 
     static void Reset()
     {
+        Console.WriteLine("Resetting Switch, please wait.");
         SendCommand("reload");
         // Wait for the switch to reset (adjust the time according to the switch's response time)
         Thread.Sleep(1000); // Wait for 1 second
@@ -289,9 +292,7 @@ class SwitchControlApp
         if (response.Contains("Cisco IOS Software"))
         {
             Console.WriteLine("Switch reset successfully.");
-            SendCommand("n");
-            Thread.Sleep(500); // Wait for 0.5 second
-            SendCommand("n");
+            SendCommand("y");
             Thread.Sleep(500); // Wait for 0.5 second
             SendCommand("n");
         }
